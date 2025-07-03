@@ -148,15 +148,17 @@
             } else if (data && data.length > 0) {
               // Jika data ditemukan, ambil hasil pertama dari fungsi
               const zonasiResult = data[0]; 
-              let resultText = `KODE: ${zonasiResult.kode}\n`; // Menggunakan nama alias 'kode' dari fungsi SQL
-              resultText += `FID: ${zonasiResult.fid}\n\n`; // Menggunakan nama alias 'fid' dari fungsi SQL
+              let resultText = `KODE RTRW: ${zonasiResult.kode_rtrw}\n`; // Menggunakan nama alias 'kode_rtrw' dari fungsi SQL
+              resultText += `FID Pola: ${zonasiResult.fid_polatext}\n\n`; // Menggunakan nama alias 'fid_polatext' dari fungsi SQL
 
               resultText += 'Detail Zonasi:\n';
               // Iterasi melalui semua properti yang dikembalikan oleh fungsi SQL
               for (const key in zonasiResult) {
-                // Tampilkan hanya properti yang bukan 'kode' atau 'fid' (karena sudah ditampilkan di atas)
-                if (Object.hasOwnProperty.call(zonasiResult, key) && key !== 'kode' && key !== 'fid') { 
-                  resultText += `${key}: ${zonasiResult[key]}\n`;
+                // Tampilkan hanya properti yang bukan 'kode_rtrw' atau 'fid_polatext' (karena sudah ditampilkan di atas)
+                if (Object.hasOwnProperty.call(zonasiResult, key) && key !== 'kode_rtrw' && key !== 'fid_polatext') { 
+                  // Format nama kunci agar lebih mudah dibaca (misal: "pola_ruang" jadi "Pola Ruang")
+                  const displayKey = key.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
+                  resultText += `${displayKey}: ${zonasiResult[key]}\n`;
                 }
               }
               document.getElementById('result').innerText = resultText;
