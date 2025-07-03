@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Zonasi Checker Bangkalan</title>
+  <title>Zonasi Checker Bangkalan (Direct RPC Supabase)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
-    /* Styling for the page layout, map, and info panel */
+    /* Styling remains largely the same */
     html, body {
       height: 100%;
       margin: 0;
@@ -15,9 +15,9 @@
       flex-direction: column;
     }
     #map {
-      flex-grow: 1; /* Map takes up available vertical space */
+      flex-grow: 1;
       width: 100%;
-      min-height: 300px; /* Minimum height for the map */
+      min-height: 300px;
     }
     #info {
       padding: 15px;
@@ -34,7 +34,7 @@
       color: white;
       padding: 10px 20px;
       border: none;
-      border-radius: 5px;
+      border-radius: 5_px;
       cursor: pointer;
       font-size: 16px;
       margin-top: 10px;
@@ -50,10 +50,10 @@
       margin-top: 15px;
       text-align: left;
       padding: 0 10px;
-      white-space: pre-wrap; /* Preserve line breaks */
-      word-wrap: break-word; /* Break long words */
-      max-height: 200px; /* Limit height of result display */
-      overflow-y: auto; /* Add scroll if content overflows */
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      max-height: 200px;
+      overflow-y: auto;
     }
     .loading-spinner {
       border: 4px solid #f3f3f3;
@@ -65,7 +65,7 @@
       display: inline-block;
       vertical-align: middle;
       margin-left: 10px;
-      display: none; /* Hidden by default */
+      display: none;
     }
 
     @keyframes spin {
@@ -84,84 +84,78 @@
   </div>
 
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     var map;
     var marker;
     var currentCoords = null;
 
-    // --- PENTING: GANTI DENGAN URL EDGE FUNCTION ANDA! ---
-    // Contoh: https://YOUR_SUPABASE_PROJECT_REF.supabase.co/functions/v1/check-zonasi
-    const EDGE_FUNCTION_URL = 'https://bbgcjsxuvssfbsxbpfui.supabase.co/functions/v1/check-zonasi'; // <-- TEMPELKAN URL DI SINI
+    // --- PENTING: GANTI DENGAN KUNCI API SUPABASE ANDA ---
+    // Pastikan ini adalah Project URL dan Anon Key dari Project Settings -> API di Supabase Dashboard Anda
+    const SUPABASE_URL = 'https://bbgcjsxuvssfbsxbpfui.supabase.co'; // Contoh: https://abcdefghijklm.supabase.co
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJiZ2Nqc3h1dnNzZmJzeGJwZnVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE1MDQyMDIsImV4cCI6MjA2NzA4MDIwMn0.zzcl0xbN2pJ205-jbRvoJB0Mc9qqwPxUvMJAwNlVpvA'; // Contoh: eyJhbGciOiJIUzI1Ni... (kunci yang panjang)
+
+    // Inisialisasi Supabase Client
+    const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     document.addEventListener('DOMContentLoaded', function() {
-      // Inisialisasi peta Leaflet, fokus di sekitar Bangkalan
-      map = L.map('map').setView([-7.0169, 113.3333], 12);
+      map = L.map('map').setView([-7.0169, 113.3333], 12); // Centered around Bangkalan
 
-      // Tambahkan Esri World Street Map sebagai basemap layer gratis
       L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
         attribution: 'Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN, Esri Japan, METI, Esri China (Hong Kong), Esri Korea, Esri (Thailand), NGCC, (c) OpenStreetMap contributors, and the GIS User Community'
       }).addTo(map);
 
-      // Tangani klik pada peta untuk mendapatkan koordinat
       map.on('click', function(e) {
         if (marker) {
-          map.removeLayer(marker); // Hapus marker sebelumnya jika ada
+          map.removeLayer(marker);
         }
-        marker = L.marker(e.latlng).addTo(map); // Tambahkan marker baru di lokasi klik
+        marker = L.marker(e.latlng).addTo(map);
         currentCoords = e.latlng;
         document.getElementById('coordinates').innerText = `Koordinat: ${e.latlng.lat.toFixed(6)}, ${e.latlng.lng.toFixed(6)}`;
-        document.getElementById('result').innerText = ''; // Bersihkan hasil sebelumnya
+        document.getElementById('result').innerText = '';
       });
 
-      // Tangani klik tombol "Cek Titik"
       document.getElementById('checkButton').addEventListener('click', async function() {
         if (currentCoords) {
-          // Tampilkan indikator loading dan nonaktifkan tombol
           document.getElementById('result').innerText = 'Memeriksa...';
           document.getElementById('loadingSpinner').style.display = 'inline-block';
           document.getElementById('checkButton').disabled = true;
 
           try {
-            // Lakukan permintaan ke Edge Function
-            const response = await fetch(EDGE_FUNCTION_URL, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({ lat: currentCoords.lat, lng: currentCoords.lng })
-            });
+            const lat = currentCoords.lat;
+            const lng = currentCoords.lng;
 
-            const data = await response.json(); // Parsing respons JSON
+            // --- Panggil Fungsi RPC 'cek_zonasi' ---
+            // Input 'titik' harus dalam format EWKT (Extended Well-Known Text)
+            // ST_GeomFromText membutuhkan SRID (4326 untuk WGS84)
+            const { data, error } = await supabase
+              .rpc('cek_zonasi', {
+                titik: `SRID=4326;POINT(${lng} ${lat})` // Format EWKT untuk geometri
+              });
 
-            // Tangani respons dari Edge Function
-            if (!response.ok) {
-              throw new Error(data.error || 'Terjadi kesalahan saat memeriksa zonasi.');
-            }
+            if (error) {
+              console.error('Supabase RPC error:', error);
+              document.getElementById('result').innerText = `Error: ${error.message || 'Terjadi kesalahan saat memeriksa zonasi.'}`;
+            } else if (data && data.length > 0) {
+              const zonasiResult = data[0]; // Ambil hasil pertama dari fungsi
+              let resultText = `KODE: ${zonasiResult.kode}\n`; // Menggunakan nama alias 'kode' dari fungsi SQL
+              resultText += `FID: ${zonasiResult.fid}\n\n`; // Menggunakan nama alias 'fid' dari fungsi SQL
 
-            if (data.error) {
-              document.getElementById('result').innerText = `Error: ${data.error}`;
-            } else if (data.message) {
-              document.getElementById('result').innerText = data.message;
-            } else {
-              // Tampilkan KODE dan detail zonasi
-              let resultText = `KODE: ${data.KODE}\n\n`;
-              if (data.zonasiDetails) {
-                resultText += 'Detail Zonasi:\n';
-                // Iterasi melalui semua kolom dalam zonasiDetails
-                for (const key in data.zonasiDetails) {
-                  if (Object.hasOwnProperty.call(data.zonasiDetails, key)) {
-                    resultText += `${key}: ${data.zonasiDetails[key]}\n`;
-                  }
+              resultText += 'Detail Zonasi:\n';
+              // Iterasi melalui semua properti yang dikembalikan oleh fungsi SQL
+              for (const key in zonasiResult) {
+                if (Object.hasOwnProperty.call(zonasiResult, key) && key !== 'kode' && key !== 'fid') { // Jangan tampilkan kode dan fid lagi
+                  resultText += `${key}: ${zonasiResult[key]}\n`;
                 }
               }
               document.getElementById('result').innerText = resultText;
+            } else {
+              document.getElementById('result').innerText = 'Tidak ada polygon yang ditemukan di lokasi ini.';
             }
           } catch (error) {
-            // Tangani kesalahan jaringan atau dari server
             document.getElementById('result').innerText = `Error: ${error.message}`;
-            console.error("Fetch error:", error);
+            console.error("Application error:", error);
           } finally {
-            // Sembunyikan spinner dan aktifkan kembali tombol
             document.getElementById('loadingSpinner').style.display = 'none';
             document.getElementById('checkButton').disabled = false;
           }
